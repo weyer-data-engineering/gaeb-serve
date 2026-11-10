@@ -165,3 +165,15 @@ def test_bid_leaves_alternatives_out_of_the_total_without_foreign_markers():
     assert body["total"] == "80056.50"
     assert b"AlternativeItem" not in x84
     assert not any("Alternative" in w for w in body["warnings"])
+
+
+def test_bid_returns_the_priced_tender_as_markdown_with_its_texts():
+    positions = [{"oz": p["oz"], "unitPrice": "10"}
+                 for p in client.post("/v1/parse", files=complex_upload()).json()["positions"]]
+
+    body = client.post("/v1/bid", files=complex_upload(), data={"prices": json.dumps({"positions": positions})}).json()
+    markdown = body["markdown"]
+
+    assert "*Alternativposition zu 01.02.0020*" in markdown
+    assert "*Hinweis:* Stundenlohnarbeiten werden nur nach" in markdown
+    assert "**Gesamtsumme: 80.056,50**" in markdown
