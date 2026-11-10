@@ -102,6 +102,8 @@ curl -H "X-API-Key: $GAEB_API_KEY" -F file=@tender.x83 http://localhost:5002/v1/
 
 Amounts are decimal strings. `positions` is filled for tenders, bids and awards (X81–X89); `findings` lists problems the reader tolerated.
 
+`itemType` is `Normal`, `LumpSum`, `Eventual` (Bedarfsposition) or `Alternative` (Wahlposition). `countsInTotal` says whether the position enters the sum: not for alternatives and not for Bedarfspositionen without total. The Markdown names the base position of each alternative and includes the tender's remarks (Hinweistexte) as `*Hinweis:*` paragraphs.
+
 ### `POST /v1/bid`
 
 Multipart upload with the tender as `file` and a JSON field `prices`:

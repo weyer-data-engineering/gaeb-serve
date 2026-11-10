@@ -129,3 +129,39 @@ def test_bid_needs_a_tender():
 
     assert response.status_code == 422
     assert "X84" in response.json()["detail"]
+
+
+COMPLEX = Path(__file__).parent / "fixtures" / "complex_tender.x83"
+
+
+def complex_upload():
+    return {"file": ("Kita.x83", COMPLEX.read_bytes(), "application/octet-stream")}
+
+
+def test_parse_marks_alternative_positions_and_keeps_them_out_of_the_sum():
+    body = client.post("/v1/parse", files=complex_upload()).json()
+    positions = {p["oz"]: p for p in body["positions"]}
+
+    assert positions["01.02.0030"]["itemType"] == "Alternative"
+    assert positions["01.02.0030"]["countsInTotal"] is False
+    assert positions["01.02.0020"]["countsInTotal"] is True
+    assert "*Alternativposition zu 01.02.0020*" in body["markdown"]
+
+
+def test_parse_keeps_remarks_before_the_following_position():
+    markdown = client.post("/v1/parse", files=complex_upload()).json()["markdown"]
+
+    remark = markdown.index("*Hinweis:* Stundenlohnarbeiten werden nur nach")
+    assert markdown.index("### 03.02") < remark < markdown.index("**03.02.0010 ")
+
+
+def test_bid_leaves_alternatives_out_of_the_total_without_foreign_markers():
+    positions = [{"oz": p["oz"], "unitPrice": "10"}
+                 for p in client.post("/v1/parse", files=complex_upload()).json()["positions"]]
+
+    body = client.post("/v1/bid", files=complex_upload(), data={"prices": json.dumps({"positions": positions})}).json()
+    x84 = base64.b64decode(body["contentBase64"])
+
+    assert body["total"] == "80056.50"
+    assert b"AlternativeItem" not in x84
+    assert not any("Alternative" in w for w in body["warnings"])
