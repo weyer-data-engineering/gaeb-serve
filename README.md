@@ -122,6 +122,7 @@ curl -H "X-API-Key: $GAEB_API_KEY" -F file=@tender.x83 -F 'prices={
 {
   "fileName": "tender.X84",
   "contentBase64": "PD94bWwg...",
+  "markdown": "# Sanierung Turnhalle\n\n...",
   "total": "21062.45",
   "unpriced": ["01.0020", "02.0020"],
   "unknownPositions": [],
@@ -130,7 +131,7 @@ curl -H "X-API-Key: $GAEB_API_KEY" -F file=@tender.x83 -F 'prices={
 }
 ```
 
-Positions are addressed by their full OZ as `/v1/parse` returns it. Totals are computed from quantity and unit price. Positions without a price stay unpriced in the bid and are listed in `unpriced`, so the caller can decide whether that is acceptable. The bid is written in the tender's DA XML version.
+Positions are addressed by their full OZ as `/v1/parse` returns it. Totals are computed from quantity and unit price. Positions without a price stay unpriced in the bid and are listed in `unpriced`, so the caller can decide whether that is acceptable. The bid is written in the tender's DA XML version. `markdown` shows the priced tender with its texts and sums. The X84 itself leaves out the texts and markers such as Bedarfspositionen, as the phase requires, so reading it back would lose them.
 
 ### Errors
 

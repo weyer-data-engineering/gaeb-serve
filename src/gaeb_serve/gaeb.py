@@ -81,6 +81,7 @@ class Bidder:
 class Bid:
     x84: bytes
     file_name: str
+    markdown: str
     total: Decimal
     unpriced: list[str]
     unknown: list[str]
@@ -136,7 +137,8 @@ def bid(
             f"A bid can only be made from a tender (X83), not from a {tender.exchange_phase.value} file."
         )
 
-    _mark_alternatives(tender, _read_extras(data))
+    extras = _read_extras(data)
+    alternatives = _mark_alternatives(tender, extras)
     doc = PhaseTransition.tender_to_bid(tender)
     if bidder is not None:
         doc.award.contractor = Party(address=Address(
@@ -166,6 +168,9 @@ def bid(
     return Bid(
         x84=_without_alternative_markers(xml),
         file_name=_bid_file_name(file_name),
+        # The X84 drops the tender's texts and markers such as Bedarfspositionen, so reading it
+        # back loses them; the priced tender still has them.
+        markdown=_with_remarks(_with_alternative_bases(to_markdown(doc), alternatives), extras.remarks),
         total=doc.grand_total,
         unpriced=unpriced,
         unknown=sorted(set(prices) - known),
