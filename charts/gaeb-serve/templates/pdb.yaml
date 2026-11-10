@@ -1,0 +1,13 @@
+{{- if and .Values.podDisruptionBudget.enabled (gt (int .Values.replicaCount) 1) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "gaeb-serve.fullname" . }}
+  labels:
+    {{- include "gaeb-serve.labels" . | nindent 4 }}
+spec:
+  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  selector:
+    matchLabels:
+      {{- include "gaeb-serve.selectorLabels" . | nindent 6 }}
+{{- end }}

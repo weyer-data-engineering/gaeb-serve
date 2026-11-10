@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "gaeb-serve.fullname" . }}
+  labels:
+    {{- include "gaeb-serve.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "gaeb-serve.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "gaeb-serve.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- if not .Values.apiKey.existingSecret }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: {{ .Values.automountServiceAccountToken }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: gaeb-serve
+          image: {{ include "gaeb-serve.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: GAEB_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "gaeb-serve.secretName" . }}
+                  key: {{ .Values.apiKey.secretKey }}
+            - name: GAEB_WORKERS
+              value: {{ .Values.workers | quote }}
+            - name: GAEB_MAX_FILE_SIZE_MB
+              value: {{ .Values.maxFileSizeMb | quote }}
+            - name: GAEB_LOG_LEVEL
+              value: {{ .Values.logLevel | quote }}
+            {{- with .Values.progSystem }}
+            - name: GAEB_PROG_SYSTEM
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.progName }}
+            - name: GAEB_PROG_NAME
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 5002
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            # Large uploads are spooled to /tmp; the root filesystem stays read-only.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- range . }}
+        - {{- toYaml . | nindent 10 }}
+          {{- if not .labelSelector }}
+          labelSelector:
+            matchLabels:
+              {{- include "gaeb-serve.selectorLabels" $ | nindent 14 }}
+          {{- end }}
+        {{- end }}
+      {{- end }}

@@ -1,0 +1,92 @@
+image:
+  repository: ghcr.io/weyer-data-engineering/gaeb-serve
+  # Defaults to the chart's appVersion.
+  tag: ""
+  # Pin an image digest (sha256:...) in addition to the tag.
+  digest: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+apiKey:
+  # Name of an existing Secret that holds the API key(s). Recommended for production.
+  existingSecret: ""
+  # Key inside that Secret.
+  secretKey: apiKey
+  # Only used without existingSecret: the chart creates a Secret with this value. Several keys,
+  # comma-separated, allow rotating without downtime.
+  value: ""
+
+# Worker processes per pod. Parsing is CPU-bound; scale with replicas rather than workers.
+workers: 1
+maxFileSizeMb: 100
+logLevel: INFO
+# ProgSystem and ProgName written into bids; the image defaults when empty.
+progSystem: ""
+progName: ""
+# Additional environment variables for the container.
+extraEnv: []
+
+replicaCount: 2
+
+service:
+  type: ClusterIP
+  port: 5002
+  annotations: {}
+
+# A 5,000-position tender (5 MB) peaks at about 190 MB of memory.
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+automountServiceAccountToken: false
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  periodSeconds: 15
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  periodSeconds: 30
+  timeoutSeconds: 5
+
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+# Spread pods over zones and nodes. Set to [] to turn off, or replace with your own constraints.
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway

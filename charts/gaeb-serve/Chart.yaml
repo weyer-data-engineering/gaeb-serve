@@ -1,0 +1,14 @@
+apiVersion: v2
+name: gaeb-serve
+description: HTTP service that reads GAEB DA XML tenders and writes priced X84 bids
+type: application
+# CI publishes the chart with the version of the release tag, so chart and image versions match.
+version: 0.1.0
+appVersion: 0.1.0
+home: https://github.com/weyer-data-engineering/gaeb-serve
+sources:
+  - https://github.com/weyer-data-engineering/gaeb-serve
+keywords:
+  - gaeb
+  - construction
+  - tender

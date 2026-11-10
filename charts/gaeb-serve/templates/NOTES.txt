@@ -1,0 +1,6 @@
+gaeb-serve is reachable inside the cluster at:
+
+  http://{{ include "gaeb-serve.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
+
+Clients send the API key in the X-API-Key header. OpenAPI documentation is at /docs.
+Keep the service internal; the key travels in plain text without TLS.

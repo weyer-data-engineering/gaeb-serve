@@ -30,6 +30,31 @@ The key protects against accidental access, not against an attacker on the netwo
 | `GAEB_PROG_NAME` | `gaeb-serve` | `ProgName` written into bids. |
 | `GAEB_LOG_LEVEL` | `INFO` | Log level. File contents are never logged. |
 
+## Kubernetes
+
+A Helm chart is published with every release:
+
+```bash
+kubectl create secret generic gaeb-serve-api-key --from-literal=apiKey="$(openssl rand -hex 32)"
+helm install gaeb-serve oci://ghcr.io/weyer-data-engineering/charts/gaeb-serve \
+  --version 0.1.0 --set apiKey.existingSecret=gaeb-serve-api-key
+```
+
+Clients in the cluster reach the service at `http://gaeb-serve.<namespace>.svc.cluster.local:5002`. The chart runs two replicas with a pod disruption budget, a read-only root filesystem and no service account token. There is no ingress on purpose: keep the service internal.
+
+| Value | Default | Meaning |
+|---|---|---|
+| `apiKey.existingSecret` | | Secret that holds the API key(s). |
+| `apiKey.secretKey` | `apiKey` | Key inside that secret. |
+| `apiKey.value` | | Without `existingSecret`, the chart creates a secret with this value. |
+| `image.tag`, `image.digest` | chart version | Image to run; set `digest` to pin it. |
+| `workers` | `1` | `GAEB_WORKERS` per pod. Scale with `replicaCount` instead. |
+| `maxFileSizeMb`, `logLevel`, `progSystem`, `progName` | | The variables above. |
+| `replicaCount` | `2` | Pods. |
+| `resources` | 100m / 256Mi, limit 1Gi | A 5 MB tender with 5,000 positions peaks at about 190 MB. |
+
+All values are listed in [`charts/gaeb-serve/values.yaml`](charts/gaeb-serve/values.yaml).
+
 ## API
 
 OpenAPI documentation is served at `/docs`.
@@ -119,6 +144,7 @@ Positions are addressed by their full OZ as `/v1/parse` returns it. Totals are c
 python -m venv .venv
 .venv/bin/pip install -e '.[test]'
 .venv/bin/pytest
+helm unittest charts/gaeb-serve   # needs the helm-unittest plugin
 GAEB_API_KEY=dev .venv/bin/uvicorn gaeb_serve.app:app --reload --port 5002
 ```
 

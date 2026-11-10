@@ -1,0 +1,116 @@
+suite: deployment
+templates:
+  - deployment.yaml
+  - secret.yaml
+release:
+  name: gaeb
+tests:
+  - it: fails without an API key
+    template: secret.yaml
+    asserts:
+      - failedTemplate:
+          errorMessage: "Set apiKey.existingSecret or apiKey.value: gaeb-serve does not start without an API key."
+
+  - it: uses the appVersion image and the chart's own secret by default
+    template: deployment.yaml
+    set:
+      apiKey.value: test-key
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/weyer-data-engineering/gaeb-serve:0.1.0
+      - equal:
+          path: spec.template.spec.containers[0].env[0]
+          value:
+            name: GAEB_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: gaeb-gaeb-serve
+                key: apiKey
+      - exists:
+          path: spec.template.metadata.annotations["checksum/secret"]
+
+  - it: creates the secret from apiKey.value
+    template: secret.yaml
+    set:
+      apiKey.value: test-key
+    asserts:
+      - equal:
+          path: stringData.apiKey
+          value: test-key
+
+  - it: reads the key from an existing secret and creates none
+    set:
+      apiKey.existingSecret: gaeb-keys
+      apiKey.secretKey: key
+    asserts:
+      - template: deployment.yaml
+        equal:
+          path: spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef
+          value:
+            name: gaeb-keys
+            key: key
+      - template: deployment.yaml
+        notExists:
+          path: spec.template.metadata.annotations["checksum/secret"]
+      - template: secret.yaml
+        hasDocuments:
+          count: 0
+
+  - it: pins the image digest
+    template: deployment.yaml
+    set:
+      apiKey.value: test-key
+      image.tag: 0.2.0
+      image.digest: sha256:abc
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/weyer-data-engineering/gaeb-serve:0.2.0@sha256:abc
+
+  - it: sets optional bid metadata only when given
+    template: deployment.yaml
+    set:
+      apiKey.value: test-key
+      progName: Example Corp
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GAEB_PROG_NAME
+            value: Example Corp
+      - notContains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: GAEB_PROG_SYSTEM
+          any: true
+
+  - it: keeps the root filesystem read-only with a writable /tmp
+    template: deployment.yaml
+    set:
+      apiKey.value: test-key
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: tmp
+            mountPath: /tmp
+
+  - it: adds the pod selector to spread constraints
+    template: deployment.yaml
+    set:
+      apiKey.value: test-key
+    asserts:
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints[1]
+          value:
+            maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: gaeb-serve
+                app.kubernetes.io/instance: gaeb
