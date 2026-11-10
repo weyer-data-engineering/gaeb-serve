@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gaeb-serve"
+dynamic = ["version"]
+description = "Small HTTP service that reads GAEB DA XML tenders (X83 and related) and writes priced X84 bids."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    "pyGAEB==1.21.0",
+    "fastapi==0.162.2",
+    "uvicorn==0.54.0",
+    "python-multipart==0.0.33",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest==9.2.0",
+    "httpx==0.28.1",
+]
+
+[tool.setuptools.dynamic]
+version = { attr = "gaeb_serve.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
