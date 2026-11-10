@@ -1,0 +1,18 @@
+suite: pod disruption budget
+templates:
+  - pdb.yaml
+set:
+  apiKey.value: test-key
+tests:
+  - it: allows one pod down with several replicas
+    asserts:
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+
+  - it: is skipped with a single replica
+    set:
+      replicaCount: 1
+    asserts:
+      - hasDocuments:
+          count: 0
