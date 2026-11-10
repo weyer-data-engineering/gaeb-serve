@@ -98,7 +98,7 @@ curl -F file=@tender.x83 -F 'prices={
 }
 ```
 
-Positions are addressed by their full OZ as `/v1/parse` returns it. Totals are computed from quantity and unit price. Positions without a price stay unpriced in the bid and are listed in `unpriced`, so the caller can decide whether that is acceptable. The bid is written in the tender's DA XML version (2.x tenders are answered in 3.3).
+Positions are addressed by their full OZ as `/v1/parse` returns it. Totals are computed from quantity and unit price. Positions without a price stay unpriced in the bid and are listed in `unpriced`, so the caller can decide whether that is acceptable. The bid is written in the tender's DA XML version.
 
 ### Errors
 

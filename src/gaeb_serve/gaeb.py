@@ -22,7 +22,6 @@ from pygaeb.writer.version_registry import WRITABLE_VERSIONS
 from gaeb_serve.config import Settings
 
 ENGINE = f"pyGAEB {ENGINE_VERSION}"
-TENDER_PHASES = {ExchangePhase.X83, ExchangePhase.X81, ExchangePhase.X82}
 
 
 class GaebError(Exception):
@@ -129,7 +128,7 @@ def bid(
         GaebError: when the file is no tender or cannot be read.
     """
     tender = _parse(data, file_name, settings)
-    if not tender.is_procurement or tender.exchange_phase not in TENDER_PHASES:
+    if not tender.is_procurement or tender.exchange_phase is not ExchangePhase.X83:
         raise GaebError(
             f"A bid can only be made from a tender (X83), not from a {tender.exchange_phase.value} file."
         )
@@ -154,7 +153,7 @@ def bid(
     xml, warnings = GAEBWriter.to_bytes(
         doc,
         phase=ExchangePhase.X84,
-        # A bid answers in the tender's version; older 2.x tenders are answered in 3.3.
+        # A bid answers in the tender's own DA XML version where the writer supports it.
         target_version=tender.source_version if tender.source_version in WRITABLE_VERSIONS
         else SourceVersion.DA_XML_33,
         prog_system=settings.prog_system,
