@@ -95,6 +95,7 @@ class BidRequest(_Model):
 class BidResponse(_Model):
     file_name: str
     content_base64: str
+    markdown: str
     total: Decimal
     unpriced: list[str]
     unknown_positions: list[str]
@@ -142,6 +143,7 @@ def bid(file: Annotated[UploadFile, File()], prices: Annotated[str, Form()]) -> 
     return BidResponse(
         file_name=result.file_name,
         content_base64=base64.b64encode(result.x84).decode("ascii"),
+        markdown=result.markdown,
         total=result.total,
         unpriced=result.unpriced,
         unknown_positions=result.unknown,
