@@ -1,3 +1,3 @@
-"""HTTP service for GAEB DA XML tenders and bids."""
+"""HTTP service for GAEB tenders and bids."""
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"

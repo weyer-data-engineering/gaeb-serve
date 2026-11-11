@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "gaeb-serve"
 dynamic = ["version"]
-description = "Small HTTP service that reads GAEB DA XML tenders (X83 and related) and writes priced X84 bids."
+description = "Small HTTP service that reads GAEB tenders (DA XML X83 and related, GAEB 90 D81/D83) and writes priced X84 bids."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"

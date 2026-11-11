@@ -6,6 +6,7 @@ the same if the engine is ever replaced.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from decimal import Decimal
 
@@ -20,6 +21,7 @@ from pygaeb.models.item import Item
 from pygaeb.models.order import Address
 from pygaeb.writer.version_registry import WRITABLE_VERSIONS
 
+from gaeb_serve import gaeb90
 from gaeb_serve.config import Settings
 
 ENGINE = f"pyGAEB {ENGINE_VERSION}"
@@ -95,20 +97,22 @@ def parse(data: bytes, file_name: str, settings: Settings) -> ParsedDocument:
     Raises:
         GaebError: when the file cannot be read as GAEB.
     """
-    doc = _parse(data, file_name, settings)
+    doc, data, gaeb90_phase, conversion_findings = _parse(data, file_name, settings)
     extras = _read_extras(data)
     alternatives = _mark_alternatives(doc, extras)
     positions = [_position(item) for item in doc.award.boq.iter_items()] if doc.is_procurement else []
     return ParsedDocument(
-        version=doc.source_version.value,
-        phase=doc.exchange_phase.value,
+        version="GAEB 90" if gaeb90_phase else doc.source_version.value,
+        phase=gaeb90_phase or doc.exchange_phase.value,
         kind=doc.document_kind.value,
         project=doc.award.project_name,
         client=doc.award.client,
         currency=doc.award.currency,
-        markdown=_with_remarks(_with_alternative_bases(to_markdown(doc), alternatives), extras.remarks),
+        markdown=_with_source_format(
+            _with_remarks(_with_alternative_bases(to_markdown(doc), alternatives), extras.remarks), gaeb90_phase
+        ),
         positions=positions,
-        findings=[
+        findings=conversion_findings + [
             f"{result.severity.value}: {result.message}"
             for result in doc.validation_results
             if result.severity != ValidationSeverity.INFO
@@ -131,7 +135,7 @@ def bid(
     Raises:
         GaebError: when the file is no tender or cannot be read.
     """
-    tender = _parse(data, file_name, settings)
+    tender, data, gaeb90_phase, _ = _parse(data, file_name, settings)
     if not tender.is_procurement or tender.exchange_phase is not ExchangePhase.X83:
         raise GaebError(
             f"A bid can only be made from a tender (X83), not from a {tender.exchange_phase.value} file."
@@ -160,7 +164,7 @@ def bid(
         doc,
         phase=ExchangePhase.X84,
         # A bid answers in the tender's own DA XML version where the writer supports it.
-        target_version=tender.source_version if tender.source_version in WRITABLE_VERSIONS
+        target_version=tender.source_version if tender.source_version in WRITABLE_VERSIONS and not gaeb90_phase
         else SourceVersion.DA_XML_33,
         prog_system=settings.prog_system,
         prog_name=settings.prog_name,
@@ -182,12 +186,22 @@ def bid(
 
 
 def _parse(data: bytes, file_name: str, settings: Settings):
+    """Returns the document, the DA XML it was read from, the GAEB 90 phase (if converted) and findings."""
     if not data:
         raise GaebError("The file is empty.")
+    gaeb90_phase, findings = None, []
+    if gaeb90.looks_like_gaeb90(data):
+        try:
+            converted = gaeb90.to_da_xml(data)
+        except gaeb90.Gaeb90Error as e:
+            raise GaebError(str(e)) from e
+        data, gaeb90_phase, findings = converted.xml, converted.phase, converted.findings
+        file_name = file_name.rsplit(".", 1)[0] + ".X83"
     try:
-        return GAEBParser.parse_bytes(data, filename=file_name, max_file_size=settings.max_file_size_bytes)
+        doc = GAEBParser.parse_bytes(data, filename=file_name, max_file_size=settings.max_file_size_bytes)
     except PyGAEBError as e:
         raise GaebError(str(e)) from e
+    return doc, data, gaeb90_phase, findings
 
 
 def _position(item: Item) -> Position:
@@ -286,13 +300,18 @@ def _walk_itemlist(itemlist, prefix: list[str], extras: _Extras) -> None:
             extras.remarks.extend((last_oz, True, text) for text in pending)
             pending = []
         elif _local(node) == "Remark":
-            text = "\n\n".join(
-                " ".join("".join(p.itertext()).split()) for p in node.iter("{*}p") if "".join(p.itertext()).strip()
-            )
+            text = "\n\n".join(filter(None, (_paragraph_text(p) for p in node.iter("{*}p"))))
             if text:
                 pending.append(text)
     if pending and last_oz:
         extras.remarks.extend((last_oz, False, text) for text in pending)
+
+
+def _paragraph_text(paragraph) -> str:
+    """A paragraph's text with whitespace collapsed; ``<br/>`` stays a line break."""
+    parts = paragraph.xpath("descendant::text() | descendant::*[local-name()='br']")
+    text = "".join(part if isinstance(part, str) else "\n" for part in parts)
+    return "\n".join(" ".join(line.split()) for line in text.split("\n") if line.strip())
 
 
 def _mark_alternatives(doc, extras: _Extras) -> dict[str, str]:
@@ -336,6 +355,13 @@ def _with_remarks(markdown: str, remarks: list[tuple[str, bool, str]]) -> str:
                 index += 1
         lines[index:index] = [f"*Hinweis:* {text}", ""]
     return "\n".join(lines)
+
+
+def _with_source_format(markdown: str, gaeb90_phase: str | None) -> str:
+    """Names GAEB 90 as the format; the engine only sees the DA XML it was converted to."""
+    if not gaeb90_phase:
+        return markdown
+    return re.sub(r"^Phase: X83 · DA XML 3\.3", f"Phase: {gaeb90_phase} · GAEB 90", markdown, count=1, flags=re.MULTILINE)
 
 
 def _heading_index(lines: list[str], oz: str) -> int | None:

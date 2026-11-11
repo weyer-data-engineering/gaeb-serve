@@ -2,14 +2,14 @@
 
 A small HTTP service for [GAEB](https://www.gaeb.de/) files, the exchange format of German construction tenders.
 
-- **Read** a GAEB DA XML file (X81–X89, DA XML 2.0–3.3) and get its bill of quantities as Markdown, plus every position as structured data.
-- **Bid**: turn a tender (X83) into a bid (X84) with your unit prices and bidder fields, written the way the X84 phase requires.
+- **Read** a GAEB DA XML file (X81–X89, DA XML 2.0–3.3) or a GAEB 90 bill of quantities (D81, D83) and get it as Markdown, plus every position as structured data.
+- **Bid**: turn a tender (X83, or GAEB 90 D81/D83) into a bid (X84) with your unit prices and bidder fields, written the way the X84 phase requires.
 
 It is a thin, stateless wrapper around [pyGAEB](https://github.com/frameiq/pygaeb) and ships as a Docker image. The API does not depend on the engine, so it could be replaced later.
 
 gaeb-serve was built for [AITEZA](https://aiteza.ai), where it reads tenders for the assistant and creates bids in the chat. It has no dependency on AITEZA and works with any client.
 
-GAEB 90 (`.d83`) and GAEB 2000 (`.p83`) are not supported.
+GAEB 90 files are converted to DA XML before reading: positions with quantities, short and long texts, BoQ levels, remarks, Bedarfspositionen and Grund-/Wahlpositionen. The DOS character set they are usually written in is detected. A bid made from a GAEB 90 file is written as X84 (DA XML 3.3), not as D84. GAEB 90 files of other phases and GAEB 2000 (`.p83`) are not supported.
 
 ## Run
 
