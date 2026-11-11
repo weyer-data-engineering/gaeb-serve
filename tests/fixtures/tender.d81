@@ -1,0 +1,39 @@
+00        81L                                                 1122PPPPI90 000001
+01Ausbau Musterschule                                                     000002
+02Neubau Musterschule Beispielstadt                                       000003
+03Stadt Beispielstadt                                                     000004
+08EUR   Euro                                                              000005
+1101       N                                                              000006
+12Trockenbau                                                              000007
+110101     N                                                              000008
+12W„nde                                                                   000009
+20                                                                        000010
+26   Alle W„nde nach DIN 18340.                                           000011
+26   Fugen in Qualit„tsstufe Q2.                                          000012
+2101010010 NNN         00000125500m2                                      000013
+25Metallst„nderwand 100 mm, EI 30                                         000014
+26   St„nderwand, beidseitig beplankt,                                    000015
+26   Gipsplatten GKF 12,5 mm.                                             000016
+26                                                                        000017
+26   Wandh”he bis 3,25 m.                                                 000018
+2101010020 NMN         00000012000m2                                      000019
+25Zulage Feuchtraumplatte                                                 000020
+26   Impr„gnierte Platten statt GKF.                                      000021
+2101010030 NEN         00000003000St                                      000022
+25Revisions”ffnung 30 x 30 cm                                             000023
+26   Nur auf Anordnung.                                                   000024
+310101                                                                    000025
+110102     N                                                              000026
+12Decken                                                                  000027
+2101020010 GNN         00000080000m2                                      000028
+25Abhangdecke Gipskarton, glatt                                           000029
+26   Grundposition.                                                       000030
+2101020020 ANN         00000080000m2                                      000031
+25Abhangdecke Mineralfaser,                                               000032
+25Rastermaá 625 x 625 mm                                                  000033
+26   Wahlposition zu 01.02.0010.                                          000034
+2101020030 NNN         00000001000psch                                    000035
+25Baustelleneinrichtung Trockenbau                                        000036
+310102                                                                    000037
+3101                                                                      000038
+99                                                                   00006000039

@@ -25,7 +25,7 @@ settings = Settings.from_env()
 app = FastAPI(
     title="gaeb-serve",
     version=__version__,
-    description="Reads GAEB DA XML tenders (X83 and related) and writes priced X84 bids.",
+    description="Reads GAEB tenders (DA XML X83 and related, GAEB 90 D81/D83) and writes priced X84 bids.",
 )
 
 

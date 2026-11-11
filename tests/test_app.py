@@ -177,3 +177,67 @@ def test_bid_returns_the_priced_tender_as_markdown_with_its_texts():
     assert "*Alternativposition zu 01.02.0020*" in markdown
     assert "*Hinweis:* Stundenlohnarbeiten werden nur nach" in markdown
     assert "**Gesamtsumme: 80.056,50**" in markdown
+
+
+GAEB90 = Path(__file__).parent / "fixtures" / "tender.d81"
+
+
+def gaeb90_upload(data=None):
+    return {"file": ("Schule.d81", GAEB90.read_bytes() if data is None else data, "application/octet-stream")}
+
+
+def test_parse_reads_gaeb90_positions_texts_and_umlauts():
+    body = client.post("/v1/parse", files=gaeb90_upload()).json()
+    positions = {p["oz"]: p for p in body["positions"]}
+
+    assert (body["version"], body["phase"]) == ("GAEB 90", "D81")
+    assert body["client"] == "Stadt Beispielstadt"
+    assert list(positions) == ["01.01.0010", "01.01.0020", "01.01.0030", "01.02.0010", "01.02.0020", "01.02.0030"]
+    assert positions["01.01.0010"]["shortText"] == "Metallständerwand 100 mm, EI 30"
+    assert (positions["01.01.0010"]["qty"], positions["01.01.0010"]["unit"]) == ("125.5", "m2")
+    assert positions["01.02.0020"]["shortText"] == "Abhangdecke Mineralfaser, Rastermaß 625 x 625 mm"
+    assert "Phase: D81 · GAEB 90" in body["markdown"]
+    assert "### 01.01 Wände" in body["markdown"]
+    assert "*Hinweis:* Alle Wände nach DIN 18340.\nFugen in Qualitätsstufe Q2." in body["markdown"]
+    assert "Gipsplatten GKF 12,5 mm." in body["markdown"]
+    assert body["findings"] == []
+
+
+def test_parse_reads_gaeb90_eventual_and_alternative_positions():
+    positions = {p["oz"]: p for p in client.post("/v1/parse", files=gaeb90_upload()).json()["positions"]}
+
+    assert positions["01.01.0020"]["itemType"] == "Eventual"
+    assert positions["01.01.0020"]["countsInTotal"] is True
+    assert positions["01.01.0030"]["countsInTotal"] is False
+    assert positions["01.02.0020"]["itemType"] == "Alternative"
+    assert positions["01.02.0020"]["countsInTotal"] is False
+
+
+def test_parse_reports_gaeb90_files_with_missing_positions():
+    truncated = b"\r\n".join(line for line in GAEB90.read_bytes().split(b"\r\n") if not line.startswith(b"2101020030"))
+
+    findings = client.post("/v1/parse", files=gaeb90_upload(truncated)).json()["findings"]
+
+    assert any("announces 6 positions, 5 were read" in f for f in findings)
+
+
+def test_parse_rejects_gaeb90_phases_other_than_81_and_83():
+    priced = GAEB90.read_bytes().replace(b"00        81L", b"00        84L", 1)
+
+    response = client.post("/v1/parse", files=gaeb90_upload(priced))
+
+    assert response.status_code == 422
+    assert "D84" in response.json()["detail"]
+
+
+def test_bid_from_gaeb90_writes_x84():
+    positions = [{"oz": p["oz"], "unitPrice": "10"}
+                 for p in client.post("/v1/parse", files=gaeb90_upload()).json()["positions"]]
+
+    body = client.post("/v1/bid", files=gaeb90_upload(), data={"prices": json.dumps({"positions": positions})}).json()
+
+    assert body["fileName"] == "Schule.X84"
+    assert b"<DP>84</DP>" in base64.b64decode(body["contentBase64"])
+    # 125.5 + 12 (Bedarf mit GB) + 80 + 1 (psch); the Bedarf ohne GB and the alternative stay out.
+    assert body["total"] == "2185.00"
+    assert body["unpriced"] == []
