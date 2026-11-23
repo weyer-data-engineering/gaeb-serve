@@ -32,6 +32,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
@@ -42,10 +43,39 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # INFRA-704: keyless login to Google Artifact Registry via Workload Identity
+      # Federation (needs id-token: write). gcloud keeps its config in RUNNER_TEMP and
+      # docker/login-action logs out after the job, so no token stays on the runner.
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        if: github.event_name != 'pull_request'
+        with:
+          workload_identity_provider: projects/304846075830/locations/global/workloadIdentityPools/github-actions/providers/github
+          project_id: gen-lang-client-0759100298
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+        if: github.event_name != 'pull_request'
+        env:
+          CLOUDSDK_CONFIG: ${{ runner.temp }}/gcloud
+      - id: gar
+        if: github.event_name != 'pull_request'
+        env:
+          CLOUDSDK_CONFIG: ${{ runner.temp }}/gcloud
+        run: |
+          token=$(gcloud auth print-access-token)
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+      - name: Log in to Google Artifact Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: europe-west3-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.gar.outputs.token }}
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          images: ${{ env.IMAGE }}
+          images: |
+            ${{ env.IMAGE }}
+            europe-west3-docker.pkg.dev/gen-lang-client-0759100298/images/gaeb-serve
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
